@@ -1,0 +1,599 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>EggSaleTracker</title>
+    <!-- React and ReactDOM -->
+    <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
+    <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
+    <!-- Babel for JSX transformation -->
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Tailwind CSS -->
+    <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
+    <style>
+      /* Remove up and down arrows from number inputs */
+      input[type=number]::-webkit-inner-spin-button, 
+      input[type=number]::-webkit-outer-spin-button { 
+        -webkit-appearance: none; 
+        margin: 0; 
+      }
+      input[type=number] {
+        -moz-appearance: textfield;
+      }
+      
+      /* Center text in the Satılan column */
+      .sold-column {
+        text-align: center;
+      }
+      
+      /* Add bottom padding for navigation bar */
+      .page-container {
+        padding-bottom: 5rem; /* Add extra space at the bottom */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="root"></div>
+    <!-- The React component (with import/export removed) -->
+    <script type="text/babel" data-presets="env,react">
+      const EggSaleTracker = () => {
+        const [itemTypes, setItemTypes] = React.useState([
+          { name: "30'lu (S) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Beyaz (M) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Sarı (M) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Beyaz (L) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Sarı (L) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Beyaz (XL) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu Sarı (XL) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "20'li (XL) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "20'li (XL) Kapaklı", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "30'lu (XXL) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
+          { name: "Tavuk (kg)", inheritedCount: 0, soldCount: 0, remainingCount: 0, price: 0 }
+        ]);
+
+        // New state for Kampanyalı Tavuk
+        const [kampanyaliTavuk, setKampanyaliTavuk] = React.useState({
+          soldCount: 0, // Adet (quantity)
+          soldKg: 0, // Weight in kg
+          price: 0 // Price per item (not per kg)
+        });
+
+        const [financials, setFinancials] = React.useState({
+          nakitToplam: "0",
+          banka: "0",
+          visaSatis: "0"
+        });
+
+        // New state for adjustment amount
+        const [adjustment, setAdjustment] = React.useState(0);
+        
+        // State for info tooltip visibility
+        const [showInfo, setShowInfo] = React.useState(false);
+        
+        // Ref for info button and tooltip
+        const infoRef = React.useRef(null);
+
+        // Locations for dropdown
+        const locations = [
+          "Gölbaşı MŞ",
+          "Bahçelievler-2",
+          "Bahçelievler-1", 
+          "Cemal Gürsel Cad.",
+          "Hükümet Cad."
+        ];
+
+        // State for selected location
+        const [selectedLocation, setSelectedLocation] = React.useState("");
+
+        // Load data from localStorage on initial render
+        React.useEffect(() => {
+          const savedItemTypes = localStorage.getItem("itemTypes");
+          const savedFinancials = localStorage.getItem("financials");
+          const savedLocation = localStorage.getItem("selectedLocation");
+          const savedAdjustment = localStorage.getItem("adjustment");
+          const savedKampanyaliTavuk = localStorage.getItem("kampanyaliTavuk");
+          
+          if (savedItemTypes) {
+            setItemTypes(JSON.parse(savedItemTypes));
+          }
+          if (savedFinancials) {
+            setFinancials(JSON.parse(savedFinancials));
+          }
+          if (savedLocation) {
+            setSelectedLocation(savedLocation);
+          }
+          if (savedAdjustment) {
+            setAdjustment(parseFloat(savedAdjustment) || 0);
+          }
+          if (savedKampanyaliTavuk) {
+            setKampanyaliTavuk(JSON.parse(savedKampanyaliTavuk));
+          }
+        }, []);
+
+        // Save itemTypes to localStorage whenever it changes
+        React.useEffect(() => {
+          localStorage.setItem("itemTypes", JSON.stringify(itemTypes));
+        }, [itemTypes]);
+
+        // Save financials to localStorage whenever it changes
+        React.useEffect(() => {
+          localStorage.setItem("financials", JSON.stringify(financials));
+        }, [financials]);
+
+        // Save selectedLocation to localStorage whenever it changes
+        React.useEffect(() => {
+          localStorage.setItem("selectedLocation", selectedLocation);
+        }, [selectedLocation]);
+
+        // Save adjustment to localStorage whenever it changes
+        React.useEffect(() => {
+          localStorage.setItem("adjustment", adjustment.toString());
+        }, [adjustment]);
+
+        // Save kampanyaliTavuk to localStorage whenever it changes
+        React.useEffect(() => {
+          localStorage.setItem("kampanyaliTavuk", JSON.stringify(kampanyaliTavuk));
+        }, [kampanyaliTavuk]);
+
+        // Calculate sales 
+        const calculateSales = () => {
+          return itemTypes.map((type, index) => {
+            let soldCount, remainingCount, salesAmount;
+            
+            // Special handling for Tavuk (kg)
+            if (type.name === "Tavuk (kg)") {
+              // Include kg from both regular tavuk and kampanyalı tavuk
+              const totalSoldKg = parseFloat(type.soldCount || 0) + parseFloat(kampanyaliTavuk.soldKg || 0);
+              soldCount = parseFloat(type.soldCount || 0);
+              remainingCount = parseFloat(type.inheritedCount || 0) - totalSoldKg;
+              salesAmount = soldCount * type.price;
+            } else {
+              soldCount = type.inheritedCount - type.remainingCount;
+              remainingCount = type.remainingCount;
+              salesAmount = soldCount * type.price;
+            }
+
+            return {
+              ...type,
+              soldCount: soldCount,
+              remainingCount: remainingCount,
+              salesAmount: salesAmount
+            };
+          });
+        };
+
+        // Calculate kampanyali tavuk sales amount
+        const calculateKampanyaliTavukSalesAmount = () => {
+          return parseFloat(kampanyaliTavuk.soldCount || 0) * parseFloat(kampanyaliTavuk.price || 0);
+        };
+
+        // Calculate total tavuk sales
+        const calculateTotalTavukSales = () => {
+          const regularTavuk = calculateSales().find(type => type.name === "Tavuk (kg)");
+          const regularTavukSales = regularTavuk ? regularTavuk.salesAmount : 0;
+          const kampanyaliTavukSales = calculateKampanyaliTavukSalesAmount();
+          return regularTavukSales + kampanyaliTavukSales;
+        };
+
+        // Calculate total tavuk kg
+        const calculateTotalTavukKg = () => {
+          const regularTavuk = calculateSales().find(type => type.name === "Tavuk (kg)");
+          const regularTavukKg = regularTavuk ? regularTavuk.soldCount : 0;
+          const kampanyaliTavukKg = kampanyaliTavuk.soldKg || 0;
+          return (parseFloat(regularTavukKg) + parseFloat(kampanyaliTavukKg)).toFixed(1);
+        };
+
+        // Update item type values
+        const updateItemType = (index, field, value) => {
+          const newItemTypes = [...itemTypes];
+          
+          // Use parseFloat and round to 1 decimal place to avoid floating point issues
+          const parsedValue = parseFloat(parseFloat(value).toFixed(1)) || 0;
+          newItemTypes[index][field] = parsedValue;
+          
+          setItemTypes(newItemTypes);
+        };
+
+        // Update kampanyali tavuk values
+        const updateKampanyaliTavuk = (field, value) => {
+          // Use parseFloat and round to 1 decimal place to avoid floating point issues
+          const parsedValue = parseFloat(parseFloat(value).toFixed(1)) || 0;
+          setKampanyaliTavuk(prev => ({
+            ...prev,
+            [field]: parsedValue
+          }));
+        };
+
+        // Calculate total sales
+        const totalSales = () => {
+          const sales = calculateSales();
+          const kampanyaliTavukSalesAmount = calculateKampanyaliTavukSalesAmount();
+          return {
+            totalSoldCount: sales
+              .filter(type => type.name !== "Tavuk (kg)")
+              .reduce((sum, type) => sum + type.soldCount, 0),
+            totalSalesAmount: sales.reduce((sum, type) => sum + type.salesAmount, 0) + kampanyaliTavukSalesAmount,
+            tavukSoldCount: sales.find(type => type.name === "Tavuk (kg)")?.soldCount || 0,
+            kampanyaliTavukSoldCount: kampanyaliTavuk.soldCount || 0,
+            kampanyaliTavukSoldKg: kampanyaliTavuk.soldKg || 0
+          };
+        };
+
+        // Get adjusted total (after manual adjustment)
+        const getAdjustedTotal = () => {
+          const originalTotal = Math.round(totalSales().totalSalesAmount);
+          return originalTotal + parseFloat(adjustment);
+        };
+
+        // Recalculate Nakit Toplam whenever financials or total sales change
+        React.useEffect(() => {
+          const adjustedTotalSalesAmount = getAdjustedTotal();
+          const visaSatis = parseFloat(financials.visaSatis) || 0;
+          const banka = parseFloat(financials.banka) || 0;
+          
+          const newNakitToplam = (adjustedTotalSalesAmount - visaSatis - banka).toFixed(0);
+          
+          // Only update if the calculated value is different
+          if (newNakitToplam !== financials.nakitToplam) {
+            setFinancials(prev => ({
+              ...prev,
+              nakitToplam: newNakitToplam
+            }));
+          }
+        }, [itemTypes, financials.visaSatis, financials.banka, adjustment, kampanyaliTavuk]);
+
+        // Update financial values
+        const updateFinancials = (field, value) => {
+          setFinancials(prev => ({
+            ...prev,
+            [field]: value
+          }));
+        };
+
+        // Handle input focus to clear initial zero
+        const handleInputFocus = (currentValue) => {
+          return (currentValue === "0" || currentValue === 0) ? "" : currentValue;
+        };
+
+        // Handle adjustment change
+        const handleAdjustmentChange = (value) => {
+          const parsedValue = parseFloat(value) || 0;
+          setAdjustment(parsedValue);
+        };
+
+        // Toggle info tooltip
+        const toggleInfo = () => {
+          setShowInfo(!showInfo);
+        };
+
+        // Add event listener to handle click outside for closing the info tooltip
+        React.useEffect(() => {
+          const handleClickOutside = (event) => {
+            if (showInfo && !event.target.closest('.info-button')) {
+              setShowInfo(false);
+            }
+          };
+
+          document.addEventListener('mousedown', handleClickOutside);
+          return () => {
+            document.removeEventListener('mousedown', handleClickOutside);
+          };
+        }, [showInfo]);
+
+        // Find the tavuk item index
+        const tavukIndex = itemTypes.findIndex(item => item.name === "Tavuk (kg)");
+
+        return (
+          <div className="container mx-auto px-6 py-8 max-w-6xl space-y-6 page-container">
+            {/* Hesap Cetveli Table */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden border-2 border-gray-300">
+              <div className="px-6 py-4 bg-gray-100 border-b">
+                <h2 className="text-xl font-semibold text-gray-800">Hesap Cetveli</h2>
+              </div>
+              <div className="overflow-x-auto">
+                <table className="w-full">
+                  <thead className="bg-gray-100 border-b">
+                    <tr>
+                      <th className="px-4 py-2 text-left">Yumurta</th>
+                      <th className="px-4 py-2 text-left">Devir</th>
+                      <th className="px-4 py-2 text-left">Kalan</th>
+                      <th className="px-4 py-2 text-center">Satılan</th>
+                      <th className="px-4 py-2 text-left">Perakende Birim Fiyatı</th>
+                      <th className="px-4 py-2 text-left">Tutar</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {calculateSales().map((type, index) => {
+                      const isActive = type.soldCount > 0;
+                      const isTavuk = type.name === "Tavuk (kg)";
+                      // Check if this is the last egg item (just before Tavuk)
+                      const isLastEggItem = index === tavukIndex;
+                      
+                      return type.name !== "" ? (
+                        <React.Fragment key={index}>
+                          {/* Add separator after the last egg item */}
+                          {isLastEggItem && (
+                            <tr className="bg-gray-50">
+                              <td colSpan="6" className="px-4 py-1 border-t border-b border-gray-300"></td>
+                            </tr>
+                          )}
+                          <tr className={`border-b ${isActive ? "bg-gray-200" : "hover:bg-gray-50"}`}>
+                            <td className="px-4 py-2">{type.name}</td>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="number" 
+                                step="0.1"
+                                inputMode="decimal"
+                                className="w-full border rounded px-2 py-1"
+                                value={itemTypes[index].inheritedCount}
+                                onFocus={(e) => {
+                                  e.target.value = handleInputFocus(e.target.value);
+                                }}
+                                onChange={(e) => updateItemType(index, "inheritedCount", e.target.value)}
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              {isTavuk ? (
+                                (itemTypes[index].inheritedCount - type.soldCount - kampanyaliTavuk.soldKg).toFixed(1)
+                              ) : (
+                                <input 
+                                  type="number" 
+                                  inputMode="numeric"
+                                  pattern="[0-9]*"
+                                  className="w-full border rounded px-2 py-1"
+                                  value={itemTypes[index].remainingCount}
+                                  onFocus={(e) => {
+                                    e.target.value = handleInputFocus(e.target.value);
+                                  }}
+                                  onChange={(e) => updateItemType(index, "remainingCount", e.target.value)}
+                                />
+                              )}
+                            </td>
+                            <td className="px-4 py-2 text-center sold-column">
+                              {isTavuk ? (
+                                <input 
+                                  type="number" 
+                                  step="0.1"
+                                  inputMode="decimal"
+                                  className="w-full border rounded px-2 py-1 text-center"
+                                  value={itemTypes[index].soldCount}
+                                  onFocus={(e) => {
+                                    e.target.value = handleInputFocus(e.target.value);
+                                  }}
+                                  onChange={(e) => {
+                                    const newSoldCount = parseFloat(parseFloat(e.target.value).toFixed(1)) || 0;
+                                    updateItemType(index, "soldCount", newSoldCount);
+                                  }}
+                                />
+                              ) : (
+                                type.soldCount
+                              )}
+                            </td>
+                            <td className="px-4 py-2">
+                              <input 
+                                type="number" 
+                                step="0.1"
+                                inputMode="decimal"
+                                className="w-full border rounded px-2 py-1"
+                                value={itemTypes[index].price}
+                                onFocus={(e) => {
+                                  e.target.value = handleInputFocus(e.target.value);
+                                }}
+                                onChange={(e) => updateItemType(index, "price", e.target.value)}
+                              />
+                            </td>
+                            <td className="px-4 py-2">
+                              {isTavuk 
+                                ? (type.salesAmount.toFixed(1)) + " ₺"
+                                : Math.round(type.salesAmount) + " ₺"
+                              }
+                            </td>
+                          </tr>
+                        </React.Fragment>
+                      ) : null;
+                    })}
+
+                    {/* Kampanyalı Tavuk row */}
+                    <tr className={`border-b ${kampanyaliTavuk.soldCount > 0 ? "bg-gray-200" : "hover:bg-gray-50"}`}>
+                      <td className="px-4 py-2">Kampanyalı Tavuk</td>
+                      <td className="px-4 py-2">
+                        {/* Shared with regular Tavuk */}
+                        <span className="text-gray-500"> </span>
+                      </td>
+                      <td className="px-4 py-2">
+                        {/* Shared with regular Tavuk */}
+                        <span className="text-gray-500"> </span>
+                      </td>
+                      <td className="px-4 py-2 text-center sold-column">
+                        <div className="flex space-x-1">
+                          <div className="flex-1">
+                            <label className="text-xs text-gray-500 block">Adet</label>
+                            <input 
+                              type="number" 
+                              inputMode="numeric"
+                              className="w-full border rounded px-2 py-1 text-center"
+                              value={kampanyaliTavuk.soldCount}
+                              onFocus={(e) => {
+                                e.target.value = handleInputFocus(e.target.value);
+                              }}
+                              onChange={(e) => {
+                                const newSoldCount = parseFloat(parseFloat(e.target.value).toFixed(1)) || 0;
+                                updateKampanyaliTavuk("soldCount", newSoldCount);
+                              }}
+                            />
+                          </div>
+                          <div className="flex-1">
+                            <label className="text-xs text-gray-500 block">Kg</label>
+                            <input 
+                              type="number" 
+                              step="0.1"
+                              inputMode="decimal"
+                              className="w-full border rounded px-2 py-1 text-center"
+                              value={kampanyaliTavuk.soldKg}
+                              onFocus={(e) => {
+                                e.target.value = handleInputFocus(e.target.value);
+                              }}
+                              onChange={(e) => {
+                                const newSoldKg = parseFloat(parseFloat(e.target.value).toFixed(1)) || 0;
+                                updateKampanyaliTavuk("soldKg", newSoldKg);
+                              }}
+                            />
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-2">
+                        <input 
+                          type="number" 
+                          step="0.1"
+                          inputMode="decimal"
+                          className="w-full border rounded px-2 py-1"
+                          value={kampanyaliTavuk.price}
+                          onFocus={(e) => {
+                            e.target.value = handleInputFocus(e.target.value);
+                          }}
+                          onChange={(e) => updateKampanyaliTavuk("price", e.target.value)}
+                        />
+                      </td>
+                      <td className="px-4 py-2">
+                        {(calculateKampanyaliTavukSalesAmount().toFixed(1)) + " ₺"}
+                      </td>
+                    </tr>
+
+                    {/* Total Tavuk row */}
+                    <tr className="border-t border-b border-gray-300">
+                      <td colSpan="4" className="px-4 py-2"></td>
+                      <td className="px-4 py-2 font-medium text-right">Toplam Tavuk:</td>
+                      <td className="px-4 py-2 font-medium">
+                        {calculateTotalTavukSales().toFixed(1)} ₺
+                      </td>
+                    </tr>
+
+                    <tr className="bg-gray-100 font-bold">
+                      <td className="px-4 py-2">Ara Toplam</td>
+                      <td colSpan={2} className="px-4 py-2"></td>
+                      <td className="px-4 py-2 text-center">{totalSales().totalSoldCount} Koli</td>
+                      <td colSpan={2} className="px-4 py-2">
+                        {Math.round(totalSales().totalSalesAmount)} ₺
+                      </td>
+                    </tr>
+                    <tr className="bg-gray-100">
+                      <td className="px-4 py-2 relative">
+                        <div className="flex items-center">
+                          <span className="font-bold">Düzeltme</span>
+                          <button 
+                            className="ml-2 w-5 h-5 rounded-full bg-gray-500 text-white flex items-center justify-center text-xs font-bold focus:outline-none info-button"
+                            onClick={toggleInfo}
+                          >
+                            i
+                          </button>
+                          {showInfo && (
+                            <div className="absolute top-10 left-0 z-10 bg-white shadow-lg rounded-md border p-3 w-64">
+                              <p className="text-sm text-gray-600">
+                                Kasaya bırakılan miktarın önüne eksi işareti ' - ' ekleyin.
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      </td>
+                      <td colSpan={4} className="px-4 py-2 text-right">
+                        <div className="flex items-center justify-end">
+                          <input 
+                            type="number" 
+                            inputMode="numeric"
+                            className="w-1/4 border rounded px-2 py-1"
+                            value={adjustment}
+                            onFocus={(e) => {
+                              e.target.value = handleInputFocus(e.target.value);
+                            }}
+                            onChange={(e) => handleAdjustmentChange(e.target.value)}
+                          />
+                          <span className="ml-2 font-bold">₺</span>
+                        </div>
+                      </td>
+                      <td colSpan={2} className="px-4 py-2"></td>
+                    </tr>
+                    <tr className="bg-gray-200 font-bold text-lg">
+                      <td className="px-4 py-2">Genel Toplam</td>
+                      <td colSpan={3} className="px-4 py-2"></td>
+                      <td colSpan={2} className="px-4 py-2">
+                        {getAdjustedTotal()} ₺
+                      </td>
+                    </tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* Financial Summary Table */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden border-2 border-gray-300">
+              <table className="w-full">
+                <tbody>
+                  {["Nakit Toplam", "Banka", "Visa Satış"].map((label, index) => (
+                    <tr key={label} className="border-b">
+                      <td className="px-4 py-2 font-medium">{label}</td>
+                      <td className="px-4 py-2">
+                        {label === "Nakit Toplam" ? (
+                          <span className="font-bold">
+                            {financials.nakitToplam} ₺
+                          </span>
+                        ) : (
+                          <input 
+                            type="number" 
+                            inputMode="numeric"
+                            className="w-full border rounded px-2 py-1"
+                            value={financials[label === "Banka" ? "banka" : "visaSatis"]}
+                            onFocus={(e) => {
+                              e.target.value = handleInputFocus(e.target.value);
+                            }}
+                            onChange={(e) => {
+                              updateFinancials(
+                                label === "Banka" ? "banka" : "visaSatis", 
+                                e.target.value
+                              );
+                            }}
+                          />
+                        )}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+
+            {/* WhatsApp Message Section */}
+            <div className="bg-white shadow-md rounded-lg overflow-hidden border-2 border-gray-300">
+              <div className="px-6 py-4 bg-gray-100 border-b flex items-center justify-between">
+                <h2 className="text-xl font-semibold text-gray-800">Whatsapp</h2>
+                <select 
+                  value={selectedLocation} 
+                  onChange={(e) => setSelectedLocation(e.target.value)}
+                  className="border rounded px-2 py-1"
+                >
+                  <option value="">Lokasyon Seç</option>
+                  {locations.map((location) => (
+                    <option key={location} value={location}>
+                      {location}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="p-4">
+                <div className="border rounded p-3 space-y-1">
+                  <div>{selectedLocation}</div>
+                  <div>Yumurta {totalSales().totalSoldCount}</div>
+                  <div>Tavuk {calculateTotalTavukKg()} kg</div>
+                </div>
+              </div>
+            </div>
+            
+            {/* Extra space at the bottom */}
+            <div className="h-16"></div>
+          </div>
+        );
+      };
+
+      ReactDOM.render(<EggSaleTracker />, document.getElementById("root"));
+    </script>
+  </body>
+</html>
