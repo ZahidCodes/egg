@@ -8,7 +8,7 @@
     <script src="https://unpkg.com/react@17/umd/react.development.js" crossorigin></script>
     <script src="https://unpkg.com/react-dom@17/umd/react-dom.development.js" crossorigin></script>
     <!-- Babel for JSX transformation -->
-    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
     <!-- Tailwind CSS -->
     <link href="https://unpkg.com/tailwindcss@^2/dist/tailwind.min.css" rel="stylesheet">
     <style>
@@ -36,7 +36,7 @@
   <body>
     <div id="root"></div>
     <!-- The React component (with import/export removed) -->
-    <script type="text/babel" data-presets="env,react">
+   <script type="text/babel" data-presets="react">
       const EggSaleTracker = () => {
         const [itemTypes, setItemTypes] = React.useState([
           { name: "30'lu (S) Yumurta", inheritedCount: 0, remainingCount: 0, price: 0 },
